@@ -31,7 +31,7 @@ var qrcode = function (data, typeNumber = -1, errorCorrectionLevel = 'M') {
 	var _modules = [];
 
 	var _dataCache = null;
-	var _data = qr8BitByte(data);
+	var _data = new Qr8BitByte(data);
 
 	if (_typeNumber < 1) {
 		var typeNumber = 1;
@@ -308,7 +308,7 @@ var qrcode = function (data, typeNumber = -1, errorCorrectionLevel = 'M') {
 			offset += dcCount;
 
 			var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
-			var rawPoly = qrPolynomial(dcdata[r], rsPoly.getLength() - 1);
+			var rawPoly = new QrPolynomial(dcdata[r], rsPoly.getLength() - 1);
 
 			var modPoly = rawPoly.mod(rsPoly);
 			ecdata[r] = new Array(rsPoly.getLength() - 1);
@@ -711,9 +711,9 @@ var QRUtil = (function () {
 
 	/** @param {number} errorCorrectLength */
 	_this.getErrorCorrectPolynomial = function (errorCorrectLength) {
-		var a = qrPolynomial([1], 0);
+		var a = new QrPolynomial([1], 0);
 		for (var i = 0; i < errorCorrectLength; i += 1) {
-			a = a.multiply(qrPolynomial([1, QRMath.gexp(i)], 0));
+			a = a.multiply(new QrPolynomial([1, QRMath.gexp(i)], 0));
 		}
 		return a;
 	};
@@ -787,68 +787,73 @@ var QRMath = (function () {
 	return _this;
 })();
 
-//---------------------------------------------------------------------
-// qrPolynomial
-//---------------------------------------------------------------------
+class QrPolynomial {
+	#num;
 
-/**
- * @param {number[]} num
- * @param {number} shift
- */
-function qrPolynomial(num, shift) {
-	if (typeof num.length == 'undefined') {
-		throw num.length + '/' + shift;
+	/**
+	 * @param {number[]} num
+	 * @param {number} shift
+	 */
+	constructor(num, shift) {
+		if (typeof num.length == 'undefined') {
+			throw num.length + '/' + shift;
+		}
+
+		this.#num = (function () {
+			var offset = 0;
+			while (offset < num.length && num[offset] == 0) {
+				offset += 1;
+			}
+			var _num = new Array(num.length - offset + shift);
+			for (var i = 0; i < num.length - offset; i += 1) {
+				_num[i] = num[i + offset];
+			}
+			return _num;
+		})();
 	}
-
-	var _num = (function () {
-		var offset = 0;
-		while (offset < num.length && num[offset] == 0) {
-			offset += 1;
-		}
-		var _num = new Array(num.length - offset + shift);
-		for (var i = 0; i < num.length - offset; i += 1) {
-			_num[i] = num[i + offset];
-		}
-		return _num;
-	})();
-
-	var _this = {};
 
 	/**
 	 * @param {number} index
 	 */
-	_this.getAt = function (index) {
-		return _num[index];
-	};
+	getAt(index) {
+		return this.#num[index];
+	}
 
-	_this.getLength = function () {
-		return _num.length;
-	};
+	getLength() {
+		return this.#num.length;
+	}
 
-	_this.multiply = function (e) {
-		var num = new Array(_this.getLength() + e.getLength() - 1);
+	/**
+	 * @param {QrPolynomial} e
+	 */
+	multiply(e) {
+		var num = new Array(this.getLength() + e.getLength() - 1);
 
-		for (var i = 0; i < _this.getLength(); i += 1) {
+		for (var i = 0; i < this.getLength(); i += 1) {
 			for (var j = 0; j < e.getLength(); j += 1) {
 				num[i + j] ^= QRMath.gexp(
-					QRMath.glog(_this.getAt(i)) + QRMath.glog(e.getAt(j))
+					QRMath.glog(this.getAt(i)) + QRMath.glog(e.getAt(j))
 				);
 			}
 		}
 
-		return qrPolynomial(num, 0);
-	};
+		return new QrPolynomial(num, 0);
+	}
 
-	_this.mod = function (e) {
-		if (_this.getLength() - e.getLength() < 0) {
-			return _this;
+	/**
+	 * @param {QrPolynomial} e
+	 * @returns {QrPolynomial}
+	 */
+	mod(e) {
+		if (this.getLength() - e.getLength() < 0) {
+			return this;
 		}
 
-		var ratio = QRMath.glog(_this.getAt(0)) - QRMath.glog(e.getAt(0));
+		var ratio = QRMath.glog(this.getAt(0)) - QRMath.glog(e.getAt(0));
 
-		var num = new Array(_this.getLength());
-		for (var i = 0; i < _this.getLength(); i += 1) {
-			num[i] = _this.getAt(i);
+		var num = new Array(this.getLength());
+		for (var i = 0; i < this.getLength(); i += 1) {
+			num[i] = this.getAt(i);
 		}
 
 		for (var i = 0; i < e.getLength(); i += 1) {
@@ -856,10 +861,8 @@ function qrPolynomial(num, shift) {
 		}
 
 		// recursive call
-		return qrPolynomial(num, 0).mod(e);
-	};
-
-	return _this;
+		return new QrPolynomial(num, 0).mod(e);
+	}
 }
 
 //---------------------------------------------------------------------
@@ -1115,23 +1118,10 @@ var QRRSBlock = (function () {
 	];
 
 	/**
-	 * @param {number} totalCount
-	 * @param {number} dataCount
-	 */
-	var qrRSBlock = function (totalCount, dataCount) {
-		var _this = {};
-		_this.totalCount = totalCount;
-		_this.dataCount = dataCount;
-		return _this;
-	};
-
-	var _this = {};
-
-	/**
 	 * @param {number} typeNumber
 	 * @param {number} errorCorrectionLevel
 	 */
-	var getRsBlockTable = function (typeNumber, errorCorrectionLevel) {
+	function getRsBlockTable(typeNumber, errorCorrectionLevel) {
 		switch (errorCorrectionLevel) {
 			case QRErrorCorrectionLevel.L:
 				return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
@@ -1144,42 +1134,42 @@ var QRRSBlock = (function () {
 			default:
 				return undefined;
 		}
-	};
+	}
 
-	/**
-	 * @param {number} typeNumber
-	 * @param {number} errorCorrectionLevel
-	 */
-	_this.getRSBlocks = function (typeNumber, errorCorrectionLevel) {
-		var rsBlock = getRsBlockTable(typeNumber, errorCorrectionLevel);
+	return {
+		/**
+		 * @param {number} typeNumber
+		 * @param {number} errorCorrectionLevel
+		 */
+		getRSBlocks(typeNumber, errorCorrectionLevel) {
+			const rsBlock = getRsBlockTable(typeNumber, errorCorrectionLevel);
 
-		if (typeof rsBlock == 'undefined') {
-			throw (
-				'bad rs block @ typeNumber:' +
-				typeNumber +
-				'/errorCorrectionLevel:' +
-				errorCorrectionLevel
-			);
-		}
-
-		var length = rsBlock.length / 3;
-
-		var list = [];
-
-		for (var i = 0; i < length; i += 1) {
-			var count = rsBlock[i * 3 + 0];
-			var totalCount = rsBlock[i * 3 + 1];
-			var dataCount = rsBlock[i * 3 + 2];
-
-			for (var j = 0; j < count; j += 1) {
-				list.push(qrRSBlock(totalCount, dataCount));
+			if (typeof rsBlock == 'undefined') {
+				throw (
+					'bad rs block @ typeNumber:' +
+					typeNumber +
+					'/errorCorrectionLevel:' +
+					errorCorrectionLevel
+				);
 			}
+
+			const length = rsBlock.length / 3;
+
+			const list = [];
+
+			for (let i = 0; i < length; i += 1) {
+				const count = rsBlock[i * 3 + 0];
+				const totalCount = rsBlock[i * 3 + 1];
+				const dataCount = rsBlock[i * 3 + 2];
+
+				for (let j = 0; j < count; j += 1) {
+					list.push({ totalCount, dataCount });
+				}
+			}
+
+			return list;
 		}
-
-		return list;
 	};
-
-	return _this;
 })();
 
 //---------------------------------------------------------------------
@@ -1240,27 +1230,25 @@ class QrBitBuffer {
 
 const encoder = new TextEncoder();
 
-/**
- * @param {string} data
- */
-var qr8BitByte = function (data) {
-	var _bytes = encoder.encode(data);
+class Qr8BitByte {
+	/** @type {Uint8Array} */
+	#bytes;
 
-	var _this = {};
+	/** @param {string} data */
+	constructor(data) {
+		this.#bytes = encoder.encode(data);
+	}
+
+	getLength() {
+		return this.#bytes.length;
+	}
 
 	/** @param {QrBitBuffer} buffer */
-	_this.getLength = function (buffer) {
-		return _bytes.length;
-	};
-
-	/** @param {QrBitBuffer} buffer */
-	_this.write = function (buffer) {
-		for (var i = 0; i < _bytes.length; i += 1) {
-			buffer.put(_bytes[i], 8);
+	write(buffer) {
+		for (var i = 0; i < this.#bytes.length; i += 1) {
+			buffer.put(this.#bytes[i], 8);
 		}
-	};
-
-	return _this;
-};
+	}
+}
 
 export default qrcode;
