@@ -26,7 +26,7 @@
  */
 export function qr(data, type = -1, correction = 'M') {
 	const qr = qrcode(data, type, correction);
-	qr.make();
+	// qr.make();
 
 	/** @type {boolean[][]} */
 	const modules = [];
@@ -98,12 +98,45 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		mapData(_dataCache, maskPattern);
 	};
 
+	_this.make = function () {
+		if (_typeNumber < 1) {
+			var typeNumber = 1;
+
+			for (; typeNumber < 40; typeNumber++) {
+				var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, _errorCorrectionLevel);
+				var buffer = qrBitBuffer();
+
+				buffer.put(_data.getMode(), 4);
+				buffer.put(
+					_data.getLength(),
+					QRUtil.getLengthInBits(_data.getMode(), typeNumber)
+				);
+				_data.write(buffer);
+
+				var totalDataCount = 0;
+				for (var i = 0; i < rsBlocks.length; i++) {
+					totalDataCount += rsBlocks[i].dataCount;
+				}
+
+				if (buffer.getLengthInBits() <= totalDataCount * 8) {
+					break;
+				}
+			}
+
+			_typeNumber = typeNumber;
+		}
+
+		makeImpl(false, getBestMaskPattern());
+	};
+
+	_this.make();
+
 	/**
 	 *
 	 * @param {number} row
 	 * @param {number} col
 	 */
-	var setupPositionProbePattern = function (row, col) {
+	function setupPositionProbePattern(row, col) {
 		for (var r = -1; r <= 7; r += 1) {
 			if (row + r <= -1 || _moduleCount <= row + r) continue;
 
@@ -121,9 +154,9 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 				}
 			}
 		}
-	};
+	}
 
-	var getBestMaskPattern = function () {
+	function getBestMaskPattern() {
 		var minLostPoint = 0;
 		var pattern = 0;
 
@@ -139,9 +172,9 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		}
 
 		return pattern;
-	};
+	}
 
-	var setupTimingPattern = function () {
+	function setupTimingPattern() {
 		for (var r = 8; r < _moduleCount - 8; r += 1) {
 			if (_modules[r][6] != null) {
 				continue;
@@ -155,9 +188,9 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 			}
 			_modules[6][c] = c % 2 == 0;
 		}
-	};
+	}
 
-	var setupPositionAdjustPattern = function () {
+	function setupPositionAdjustPattern() {
 		var pos = QRUtil.getPatternPosition(_typeNumber);
 
 		for (var i = 0; i < pos.length; i += 1) {
@@ -180,7 +213,7 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 				}
 			}
 		}
-	};
+	}
 
 	/**
 	 * @param {boolean} test
@@ -203,7 +236,7 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 	 * @param {boolean} test
 	 * @param {number} maskPattern
 	 */
-	var setupTypeInfo = function (test, maskPattern) {
+	function setupTypeInfo(test, maskPattern) {
 		var data = (_errorCorrectionLevel << 3) | maskPattern;
 		var bits = QRUtil.getBCHTypeInfo(data);
 
@@ -235,13 +268,13 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 
 		// fixed module
 		_modules[_moduleCount - 8][8] = !test;
-	};
+	}
 
 	/**
 	 * @param {number[]} data
 	 * @param {number} maskPattern
 	 */
-	var mapData = function (data, maskPattern) {
+	function mapData(data, maskPattern) {
 		var inc = -1;
 		var row = _moduleCount - 1;
 		var bitIndex = 7;
@@ -285,9 +318,9 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 				}
 			}
 		}
-	};
+	}
 
-	var createBytes = function (buffer, rsBlocks) {
+	function createBytes(buffer, rsBlocks) {
 		var offset = 0;
 
 		var maxDcCount = 0;
@@ -348,14 +381,14 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		}
 
 		return data;
-	};
+	}
 
 	/**
 	 * @param {number} typeNumber
 	 * @param {number} errorCorrectionLevel
 	 * @param {TODO} data
 	 */
-	var createData = function (typeNumber, errorCorrectionLevel, data) {
+	function createData(typeNumber, errorCorrectionLevel, data) {
 		var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectionLevel);
 
 		var buffer = qrBitBuffer();
@@ -407,10 +440,10 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		}
 
 		return createBytes(buffer, rsBlocks);
-	};
+	}
 
 	function getLostPoint() {
-		var moduleCount = _this.getModuleCount();
+		var moduleCount = getModuleCount();
 
 		var lostPoint = 0;
 
@@ -419,7 +452,7 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		for (var row = 0; row < moduleCount; row += 1) {
 			for (var col = 0; col < moduleCount; col += 1) {
 				var sameCount = 0;
-				var dark = _this.isDark(row, col);
+				var dark = isDark(row, col);
 
 				for (var r = -1; r <= 1; r += 1) {
 					if (row + r < 0 || moduleCount <= row + r) {
@@ -435,7 +468,7 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 							continue;
 						}
 
-						if (dark == _this.isDark(row + r, col + c)) {
+						if (dark == isDark(row + r, col + c)) {
 							sameCount += 1;
 						}
 					}
@@ -452,10 +485,10 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		for (var row = 0; row < moduleCount - 1; row += 1) {
 			for (var col = 0; col < moduleCount - 1; col += 1) {
 				var count = 0;
-				if (_this.isDark(row, col)) count += 1;
-				if (_this.isDark(row + 1, col)) count += 1;
-				if (_this.isDark(row, col + 1)) count += 1;
-				if (_this.isDark(row + 1, col + 1)) count += 1;
+				if (isDark(row, col)) count += 1;
+				if (isDark(row + 1, col)) count += 1;
+				if (isDark(row, col + 1)) count += 1;
+				if (isDark(row + 1, col + 1)) count += 1;
 				if (count == 0 || count == 4) {
 					lostPoint += 3;
 				}
@@ -467,13 +500,13 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		for (var row = 0; row < moduleCount; row += 1) {
 			for (var col = 0; col < moduleCount - 6; col += 1) {
 				if (
-					_this.isDark(row, col) &&
-					!_this.isDark(row, col + 1) &&
-					_this.isDark(row, col + 2) &&
-					_this.isDark(row, col + 3) &&
-					_this.isDark(row, col + 4) &&
-					!_this.isDark(row, col + 5) &&
-					_this.isDark(row, col + 6)
+					isDark(row, col) &&
+					!isDark(row, col + 1) &&
+					isDark(row, col + 2) &&
+					isDark(row, col + 3) &&
+					isDark(row, col + 4) &&
+					!isDark(row, col + 5) &&
+					isDark(row, col + 6)
 				) {
 					lostPoint += 40;
 				}
@@ -483,13 +516,13 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		for (var col = 0; col < moduleCount; col += 1) {
 			for (var row = 0; row < moduleCount - 6; row += 1) {
 				if (
-					_this.isDark(row, col) &&
-					!_this.isDark(row + 1, col) &&
-					_this.isDark(row + 2, col) &&
-					_this.isDark(row + 3, col) &&
-					_this.isDark(row + 4, col) &&
-					!_this.isDark(row + 5, col) &&
-					_this.isDark(row + 6, col)
+					isDark(row, col) &&
+					!isDark(row + 1, col) &&
+					isDark(row + 2, col) &&
+					isDark(row + 3, col) &&
+					isDark(row + 4, col) &&
+					!isDark(row + 5, col) &&
+					isDark(row + 6, col)
 				) {
 					lostPoint += 40;
 				}
@@ -502,7 +535,7 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 
 		for (var col = 0; col < moduleCount; col += 1) {
 			for (var row = 0; row < moduleCount; row += 1) {
-				if (_this.isDark(row, col)) {
+				if (isDark(row, col)) {
 					darkCount += 1;
 				}
 			}
@@ -519,49 +552,18 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 	 * @param {number} row
 	 * @param {number} col
 	 */
-	_this.isDark = function (row, col) {
+	function isDark(row, col) {
 		if (row < 0 || _moduleCount <= row || col < 0 || _moduleCount <= col) {
 			throw row + ',' + col;
 		}
 		return _modules[row][col];
-	};
+	}
 
-	_this.getModuleCount = function () {
+	function getModuleCount() {
 		return _moduleCount;
-	};
+	}
 
-	_this.make = function () {
-		if (_typeNumber < 1) {
-			var typeNumber = 1;
-
-			for (; typeNumber < 40; typeNumber++) {
-				var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, _errorCorrectionLevel);
-				var buffer = qrBitBuffer();
-
-				buffer.put(_data.getMode(), 4);
-				buffer.put(
-					_data.getLength(),
-					QRUtil.getLengthInBits(_data.getMode(), typeNumber)
-				);
-				_data.write(buffer);
-
-				var totalDataCount = 0;
-				for (var i = 0; i < rsBlocks.length; i++) {
-					totalDataCount += rsBlocks[i].dataCount;
-				}
-
-				if (buffer.getLengthInBits() <= totalDataCount * 8) {
-					break;
-				}
-			}
-
-			_typeNumber = typeNumber;
-		}
-
-		makeImpl(false, getBestMaskPattern());
-	};
-
-	return _this;
+	return { isDark, getModuleCount };
 };
 
 //---------------------------------------------------------------------
@@ -1318,6 +1320,9 @@ var qrBitBuffer = function () {
 
 const encoder = new TextEncoder();
 
+/**
+ * @param {string} data
+ */
 var qr8BitByte = function (data) {
 	var _mode = QRMode.MODE_8BIT_BYTE;
 	var _bytes = encoder.encode(data);
