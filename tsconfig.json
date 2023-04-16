@@ -4,6 +4,7 @@
 		"checkJs": true,
 		"strict": true,
 		"emitDeclarationOnly": true,
-		"declaration": true
+		"declaration": true,
+		"target": "ES2022"
 	}
 }

@@ -15,70 +15,62 @@
 //
 //---------------------------------------------------------------------
 
-//---------------------------------------------------------------------
-// qrcode
-//---------------------------------------------------------------------
-
 /**
- * @param {string} data
- * @param {number} type
- * @param {'L' | 'M' | 'Q' | 'H'} correction
- */
-export function qr(data, type = -1, correction = 'M') {
-	const qr = qrcode(data, type, correction);
-	// qr.make();
-
-	/** @type {boolean[][]} */
-	const modules = [];
-
-	for (let r = 0; r < qr.getModuleCount(); r++) {
-		modules[r] = [];
-		for (let c = 0; c < qr.getModuleCount(); c++) {
-			modules[r][c] = qr.isDark(r, c);
-		}
-	}
-
-	return modules;
-}
-
-/**
- * qrcode
  * @param {string} data
  * @param {number} typeNumber 1 to 40
  * @param {'L' | 'M' | 'Q' | 'H'} errorCorrectionLevel
  */
-var qrcode = function (data, typeNumber, errorCorrectionLevel) {
+var qrcode = function (data, typeNumber = -1, errorCorrectionLevel = 'M') {
 	const PAD0 = 0xec;
 	const PAD1 = 0x11;
 
 	var _typeNumber = typeNumber;
 	var _errorCorrectionLevel = QRErrorCorrectionLevel[errorCorrectionLevel];
 
-	/** @type {boolean[][]} */
+	/** @type {(boolean | null)[][]} */
 	var _modules = [];
 
-	var _moduleCount = 0;
 	var _dataCache = null;
 	var _data = qr8BitByte(data);
 
-	var _this = {};
+	if (_typeNumber < 1) {
+		var typeNumber = 1;
+
+		for (; typeNumber < 40; typeNumber++) {
+			var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, _errorCorrectionLevel);
+			var buffer = new QrBitBuffer();
+
+			buffer.put(4, 4);
+			buffer.put(_data.getLength(), QRUtil.getLengthInBits(4, typeNumber));
+			_data.write(buffer);
+
+			var totalDataCount = 0;
+			for (var i = 0; i < rsBlocks.length; i++) {
+				totalDataCount += rsBlocks[i].dataCount;
+			}
+
+			if (buffer.getLengthInBits() <= totalDataCount * 8) {
+				break;
+			}
+		}
+
+		_typeNumber = typeNumber;
+	}
+
+	const _moduleCount = _typeNumber * 4 + 17;
 
 	/**
 	 * @param {boolean} test
 	 * @param {number} maskPattern
 	 */
 	var makeImpl = function (test, maskPattern) {
-		_moduleCount = _typeNumber * 4 + 17;
-		_modules = (function (moduleCount) {
-			var modules = new Array(moduleCount);
-			for (var row = 0; row < moduleCount; row += 1) {
-				modules[row] = new Array(moduleCount);
-				for (var col = 0; col < moduleCount; col += 1) {
-					modules[row][col] = null;
-				}
+		_modules = new Array(_moduleCount);
+		for (var row = 0; row < _moduleCount; row += 1) {
+			_modules[row] = new Array(_moduleCount);
+			for (var col = 0; col < _moduleCount; col += 1) {
+				_modules[row][col] = null;
 			}
-			return modules;
-		})(_moduleCount);
+		}
 
 		setupPositionProbePattern(0, 0);
 		setupPositionProbePattern(_moduleCount - 7, 0);
@@ -98,38 +90,7 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		mapData(_dataCache, maskPattern);
 	};
 
-	_this.make = function () {
-		if (_typeNumber < 1) {
-			var typeNumber = 1;
-
-			for (; typeNumber < 40; typeNumber++) {
-				var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, _errorCorrectionLevel);
-				var buffer = qrBitBuffer();
-
-				buffer.put(_data.getMode(), 4);
-				buffer.put(
-					_data.getLength(),
-					QRUtil.getLengthInBits(_data.getMode(), typeNumber)
-				);
-				_data.write(buffer);
-
-				var totalDataCount = 0;
-				for (var i = 0; i < rsBlocks.length; i++) {
-					totalDataCount += rsBlocks[i].dataCount;
-				}
-
-				if (buffer.getLengthInBits() <= totalDataCount * 8) {
-					break;
-				}
-			}
-
-			_typeNumber = typeNumber;
-		}
-
-		makeImpl(false, getBestMaskPattern());
-	};
-
-	_this.make();
+	makeImpl(false, getBestMaskPattern());
 
 	/**
 	 *
@@ -320,6 +281,9 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		}
 	}
 
+	/**
+	 * @param {QrBitBuffer} buffer
+	 */
 	function createBytes(buffer, rsBlocks) {
 		var offset = 0;
 
@@ -391,13 +355,10 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 	function createData(typeNumber, errorCorrectionLevel, data) {
 		var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectionLevel);
 
-		var buffer = qrBitBuffer();
+		var buffer = new QrBitBuffer();
 
-		buffer.put(data.getMode(), 4);
-		buffer.put(
-			data.getLength(),
-			QRUtil.getLengthInBits(data.getMode(), typeNumber)
-		);
+		buffer.put(4, 4);
+		buffer.put(data.getLength(), QRUtil.getLengthInBits(4, typeNumber));
 		data.write(buffer);
 
 		// calc num max data.
@@ -563,7 +524,7 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 		return _moduleCount;
 	}
 
-	return { isDark, getModuleCount };
+	return _modules;
 };
 
 //---------------------------------------------------------------------
@@ -571,10 +532,7 @@ var qrcode = function (data, typeNumber, errorCorrectionLevel) {
 //---------------------------------------------------------------------
 
 var QRMode = {
-	MODE_NUMBER: 1 << 0,
-	MODE_ALPHA_NUM: 1 << 1,
-	MODE_8BIT_BYTE: 1 << 2,
-	MODE_KANJI: 1 << 3
+	MODE_8BIT_BYTE: 1 << 2
 };
 
 //---------------------------------------------------------------------
@@ -767,49 +725,13 @@ var QRUtil = (function () {
 	_this.getLengthInBits = function (mode, type) {
 		if (1 <= type && type < 10) {
 			// 1 - 9
-
-			switch (mode) {
-				case QRMode.MODE_NUMBER:
-					return 10;
-				case QRMode.MODE_ALPHA_NUM:
-					return 9;
-				case QRMode.MODE_8BIT_BYTE:
-					return 8;
-				case QRMode.MODE_KANJI:
-					return 8;
-				default:
-					throw 'mode:' + mode;
-			}
+			return 8;
 		} else if (type < 27) {
 			// 10 - 26
-
-			switch (mode) {
-				case QRMode.MODE_NUMBER:
-					return 12;
-				case QRMode.MODE_ALPHA_NUM:
-					return 11;
-				case QRMode.MODE_8BIT_BYTE:
-					return 16;
-				case QRMode.MODE_KANJI:
-					return 10;
-				default:
-					throw 'mode:' + mode;
-			}
+			return 16;
 		} else if (type < 41) {
 			// 27 - 40
-
-			switch (mode) {
-				case QRMode.MODE_NUMBER:
-					return 14;
-				case QRMode.MODE_ALPHA_NUM:
-					return 13;
-				case QRMode.MODE_8BIT_BYTE:
-					return 16;
-				case QRMode.MODE_KANJI:
-					return 12;
-				default:
-					throw 'mode:' + mode;
-			}
+			return 16;
 		} else {
 			throw 'type:' + type;
 		}
@@ -1261,58 +1183,56 @@ var QRRSBlock = (function () {
 })();
 
 //---------------------------------------------------------------------
-// qrBitBuffer
+// new QrBitBuffer
 //---------------------------------------------------------------------
 
-var qrBitBuffer = function () {
+class QrBitBuffer {
 	/** @type {number[]} */
-	var _buffer = [];
-	var _length = 0;
+	#buffer = [];
+	#length = 0;
 
-	function getBuffer() {
-		return _buffer;
+	getBuffer() {
+		return this.#buffer;
 	}
 
 	/**
 	 * @param {number} index
 	 */
-	function getAt(index) {
+	getAt(index) {
 		var bufIndex = Math.floor(index / 8);
-		return ((_buffer[bufIndex] >>> (7 - (index % 8))) & 1) == 1;
+		return ((this.#buffer[bufIndex] >>> (7 - (index % 8))) & 1) == 1;
 	}
 
 	/**
 	 * @param {number} num
 	 * @param {number} length
 	 */
-	function put(num, length) {
+	put(num, length) {
 		for (var i = 0; i < length; i += 1) {
-			putBit(((num >>> (length - i - 1)) & 1) == 1);
+			this.putBit(((num >>> (length - i - 1)) & 1) == 1);
 		}
 	}
 
-	function getLengthInBits() {
-		return _length;
+	getLengthInBits() {
+		return this.#length;
 	}
 
 	/**
 	 * @param {boolean} bit
 	 */
-	function putBit(bit) {
-		var bufIndex = Math.floor(_length / 8);
-		if (_buffer.length <= bufIndex) {
-			_buffer.push(0);
+	putBit(bit) {
+		var bufIndex = Math.floor(this.#length / 8);
+		if (this.#buffer.length <= bufIndex) {
+			this.#buffer.push(0);
 		}
 
 		if (bit) {
-			_buffer[bufIndex] |= 0x80 >>> _length % 8;
+			this.#buffer[bufIndex] |= 0x80 >>> this.#length % 8;
 		}
 
-		_length += 1;
+		this.#length += 1;
 	}
-
-	return { getBuffer, getAt, put, getLengthInBits, putBit };
-};
+}
 
 //---------------------------------------------------------------------
 // qrNumber
@@ -1324,19 +1244,16 @@ const encoder = new TextEncoder();
  * @param {string} data
  */
 var qr8BitByte = function (data) {
-	var _mode = QRMode.MODE_8BIT_BYTE;
 	var _bytes = encoder.encode(data);
 
 	var _this = {};
 
-	_this.getMode = function () {
-		return _mode;
-	};
-
+	/** @param {QrBitBuffer} buffer */
 	_this.getLength = function (buffer) {
 		return _bytes.length;
 	};
 
+	/** @param {QrBitBuffer} buffer */
 	_this.write = function (buffer) {
 		for (var i = 0; i < _bytes.length; i += 1) {
 			buffer.put(_bytes[i], 8);
