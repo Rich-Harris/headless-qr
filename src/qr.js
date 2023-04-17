@@ -621,8 +621,6 @@ var QRUtil = (function () {
 		(1 << 0);
 	var G15_MASK = (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1);
 
-	var _this = {};
-
 	/**
 	 * @param {number} data
 	 */
@@ -635,109 +633,109 @@ var QRUtil = (function () {
 		return digit;
 	};
 
-	/**
-	 * @param {number} data
-	 */
-	_this.getBCHTypeInfo = function (data) {
-		var d = data << 10;
-		while (getBCHDigit(d) - getBCHDigit(G15) >= 0) {
-			d ^= G15 << (getBCHDigit(d) - getBCHDigit(G15));
+	return {
+		/**
+		 * @param {number} data
+		 */
+		getBCHTypeInfo(data) {
+			var d = data << 10;
+			while (getBCHDigit(d) - getBCHDigit(G15) >= 0) {
+				d ^= G15 << (getBCHDigit(d) - getBCHDigit(G15));
+			}
+			return ((data << 10) | d) ^ G15_MASK;
+		},
+
+		/**
+		 * @param {number} data
+		 */
+		getBCHTypeNumber(data) {
+			var d = data << 12;
+			while (getBCHDigit(d) - getBCHDigit(G18) >= 0) {
+				d ^= G18 << (getBCHDigit(d) - getBCHDigit(G18));
+			}
+			return (data << 12) | d;
+		},
+
+		/**
+		 * @param {number} typeNumber
+		 */
+		getPatternPosition(typeNumber) {
+			return PATTERN_POSITION_TABLE[typeNumber - 1];
+		},
+
+		/**
+		 *
+		 * @param {number} maskPattern
+		 * @returns {(i: number, j: number) => boolean}
+		 */
+		getMaskFunction(maskPattern) {
+			switch (maskPattern) {
+				case QRMaskPattern.PATTERN000:
+					return function (i, j) {
+						return (i + j) % 2 == 0;
+					};
+				case QRMaskPattern.PATTERN001:
+					return function (i, j) {
+						return i % 2 == 0;
+					};
+				case QRMaskPattern.PATTERN010:
+					return function (i, j) {
+						return j % 3 == 0;
+					};
+				case QRMaskPattern.PATTERN011:
+					return function (i, j) {
+						return (i + j) % 3 == 0;
+					};
+				case QRMaskPattern.PATTERN100:
+					return function (i, j) {
+						return (Math.floor(i / 2) + Math.floor(j / 3)) % 2 == 0;
+					};
+				case QRMaskPattern.PATTERN101:
+					return function (i, j) {
+						return ((i * j) % 2) + ((i * j) % 3) == 0;
+					};
+				case QRMaskPattern.PATTERN110:
+					return function (i, j) {
+						return (((i * j) % 2) + ((i * j) % 3)) % 2 == 0;
+					};
+				case QRMaskPattern.PATTERN111:
+					return function (i, j) {
+						return (((i * j) % 3) + ((i + j) % 2)) % 2 == 0;
+					};
+
+				default:
+					throw 'bad maskPattern:' + maskPattern;
+			}
+		},
+
+		/** @param {number} errorCorrectLength */
+		getErrorCorrectPolynomial(errorCorrectLength) {
+			var a = new QrPolynomial([1], 0);
+			for (var i = 0; i < errorCorrectLength; i += 1) {
+				a = a.multiply(new QrPolynomial([1, QRMath.gexp(i)], 0));
+			}
+			return a;
+		},
+
+		/**
+		 * @param {number} mode
+		 * @param {number} type
+		 */
+		getLengthInBits(mode, type) {
+			if (1 <= type && type < 10) {
+				// 1 - 9
+				return 8;
+			} else if (type < 27) {
+				// 10 - 26
+				return 16;
+			} else if (type < 41) {
+				// 27 - 40
+				return 16;
+			} else {
+				throw 'type:' + type;
+			}
 		}
-		return ((data << 10) | d) ^ G15_MASK;
 	};
-
-	/**
-	 * @param {number} data
-	 */
-	_this.getBCHTypeNumber = function (data) {
-		var d = data << 12;
-		while (getBCHDigit(d) - getBCHDigit(G18) >= 0) {
-			d ^= G18 << (getBCHDigit(d) - getBCHDigit(G18));
-		}
-		return (data << 12) | d;
-	};
-
-	/**
-	 * @param {number} typeNumber
-	 */
-	_this.getPatternPosition = function (typeNumber) {
-		return PATTERN_POSITION_TABLE[typeNumber - 1];
-	};
-
-	/**
-	 *
-	 * @param {number} maskPattern
-	 * @returns {(i: number, j: number) => boolean}
-	 */
-	_this.getMaskFunction = function (maskPattern) {
-		switch (maskPattern) {
-			case QRMaskPattern.PATTERN000:
-				return function (i, j) {
-					return (i + j) % 2 == 0;
-				};
-			case QRMaskPattern.PATTERN001:
-				return function (i, j) {
-					return i % 2 == 0;
-				};
-			case QRMaskPattern.PATTERN010:
-				return function (i, j) {
-					return j % 3 == 0;
-				};
-			case QRMaskPattern.PATTERN011:
-				return function (i, j) {
-					return (i + j) % 3 == 0;
-				};
-			case QRMaskPattern.PATTERN100:
-				return function (i, j) {
-					return (Math.floor(i / 2) + Math.floor(j / 3)) % 2 == 0;
-				};
-			case QRMaskPattern.PATTERN101:
-				return function (i, j) {
-					return ((i * j) % 2) + ((i * j) % 3) == 0;
-				};
-			case QRMaskPattern.PATTERN110:
-				return function (i, j) {
-					return (((i * j) % 2) + ((i * j) % 3)) % 2 == 0;
-				};
-			case QRMaskPattern.PATTERN111:
-				return function (i, j) {
-					return (((i * j) % 3) + ((i + j) % 2)) % 2 == 0;
-				};
-
-			default:
-				throw 'bad maskPattern:' + maskPattern;
-		}
-	};
-
-	/** @param {number} errorCorrectLength */
-	_this.getErrorCorrectPolynomial = function (errorCorrectLength) {
-		var a = new QrPolynomial([1], 0);
-		for (var i = 0; i < errorCorrectLength; i += 1) {
-			a = a.multiply(new QrPolynomial([1, QRMath.gexp(i)], 0));
-		}
-		return a;
-	};
-
-	/**
-	 * @param {number} mode
-	 * @param {number} type
-	 */
-	_this.getLengthInBits = function (mode, type) {
-		if (1 <= type && type < 10) {
-			// 1 - 9
-			return 8;
-		} else if (type < 27) {
-			// 10 - 26
-			return 16;
-		} else if (type < 41) {
-			// 27 - 40
-			return 16;
-		} else {
-			throw 'type:' + type;
-		}
-	};
-
-	return _this;
 })();
 
 //---------------------------------------------------------------------
@@ -760,31 +758,29 @@ var QRMath = (function () {
 		LOG_TABLE[EXP_TABLE[i]] = i;
 	}
 
-	var _this = {};
+	return {
+		/** @param {number} n */
+		glog(n) {
+			if (n < 1) {
+				throw 'glog(' + n + ')';
+			}
 
-	/** @param {number} n */
-	_this.glog = function (n) {
-		if (n < 1) {
-			throw 'glog(' + n + ')';
+			return LOG_TABLE[n];
+		},
+
+		/** @param {number} n */
+		gexp(n) {
+			while (n < 0) {
+				n += 255;
+			}
+
+			while (n >= 256) {
+				n -= 255;
+			}
+
+			return EXP_TABLE[n];
 		}
-
-		return LOG_TABLE[n];
 	};
-
-	/** @param {number} n */
-	_this.gexp = function (n) {
-		while (n < 0) {
-			n += 255;
-		}
-
-		while (n >= 256) {
-			n -= 255;
-		}
-
-		return EXP_TABLE[n];
-	};
-
-	return _this;
 })();
 
 class QrPolynomial {
@@ -1172,10 +1168,6 @@ var QRRSBlock = (function () {
 	};
 })();
 
-//---------------------------------------------------------------------
-// new QrBitBuffer
-//---------------------------------------------------------------------
-
 class QrBitBuffer {
 	/** @type {number[]} */
 	#buffer = [];
@@ -1223,10 +1215,6 @@ class QrBitBuffer {
 		this.#length += 1;
 	}
 }
-
-//---------------------------------------------------------------------
-// qrNumber
-//---------------------------------------------------------------------
 
 const encoder = new TextEncoder();
 
