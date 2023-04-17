@@ -1,4 +1,4 @@
-import qrcode from '../src/qr.js';
+import { qrcode } from '../src/qr.js';
 import test from 'node:test';
 import * as assert from 'node:assert';
 
