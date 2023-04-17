@@ -30,7 +30,9 @@ var qrcode = function (data, typeNumber = -1, errorCorrectionLevel = 'M') {
 	/** @type {(boolean | null)[][]} */
 	var _modules = [];
 
+	/** @type {number[] | null} */
 	var _dataCache = null;
+
 	var _data = new Qr8BitByte(data);
 
 	if (_typeNumber < 1) {
@@ -283,6 +285,7 @@ var qrcode = function (data, typeNumber = -1, errorCorrectionLevel = 'M') {
 
 	/**
 	 * @param {QrBitBuffer} buffer
+	 * @param {Array<{ dataCount: number, totalCount: number }>} rsBlocks
 	 */
 	function createBytes(buffer, rsBlocks) {
 		var offset = 0;
@@ -290,7 +293,10 @@ var qrcode = function (data, typeNumber = -1, errorCorrectionLevel = 'M') {
 		var maxDcCount = 0;
 		var maxEcCount = 0;
 
+		/** @type {number[][]} */
 		var dcdata = new Array(rsBlocks.length);
+
+		/** @type {number[][]} */
 		var ecdata = new Array(rsBlocks.length);
 
 		for (var r = 0; r < rsBlocks.length; r += 1) {
@@ -323,6 +329,7 @@ var qrcode = function (data, typeNumber = -1, errorCorrectionLevel = 'M') {
 			totalCodeCount += rsBlocks[i].totalCount;
 		}
 
+		/** @type {number[]} */
 		var data = new Array(totalCodeCount);
 		var index = 0;
 
@@ -350,7 +357,7 @@ var qrcode = function (data, typeNumber = -1, errorCorrectionLevel = 'M') {
 	/**
 	 * @param {number} typeNumber
 	 * @param {number} errorCorrectionLevel
-	 * @param {TODO} data
+	 * @param {Qr8BitByte} data
 	 */
 	function createData(typeNumber, errorCorrectionLevel, data) {
 		var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectionLevel);
