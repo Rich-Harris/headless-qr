@@ -17,5 +17,9 @@
 	},
 	"devDependencies": {
 		"typescript": "^5.0.4"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Rich-Harris/headless-qr.git"
 	}
 }
