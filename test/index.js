@@ -1,4 +1,4 @@
-import { qrcode } from '../src/qr.js';
+import { qr } from '../src/qr.js';
 import test from 'node:test';
 import * as assert from 'node:assert';
 
@@ -44,12 +44,12 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 `.trim();
 
 test('QRCode is correct', () => {
-	// const qr = qrcode(-1, 'M');
+	// const qr = qr(-1, 'M');
 	// qr.addData(input);
 	// // qr.addData('漢字');
 	// qr.make();
 
-	const modules = qrcode(input);
+	const modules = qr(input);
 
 	const lines = output
 		.split('\n')
