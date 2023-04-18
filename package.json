@@ -1,7 +1,7 @@
 {
 	"name": "headless-qr",
 	"type": "module",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"exports": {
 		".": {
 			"types": "./types/qr/d/ts",

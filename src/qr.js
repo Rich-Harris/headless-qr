@@ -29,10 +29,12 @@ const PAD1 = 0x11;
 
 /**
  * @param {string} input
- * @param {number} version 1 to 40
- * @param {'L' | 'M' | 'Q' | 'H'} correction
+ * @param {{
+ *   version?: number;
+ *   correction?: 'L' | 'M' | 'Q' | 'H';
+ * }} opts
  */
-export function qr(input, version = -1, correction = 'M') {
+export function qr(input, { version = -1, correction = 'M' } = {}) {
 	const error_correction_level = QRErrorCorrectionLevel[correction];
 	const data = encoder.encode(input);
 
