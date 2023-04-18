@@ -98,9 +98,9 @@ export function qr(input, { version = -1, correction = 'M' } = {}) {
 			}
 		}
 
-		setup_position_probe_patter(modules, 0, 0);
-		setup_position_probe_patter(modules, size - 7, 0);
-		setup_position_probe_patter(modules, 0, size - 7);
+		setup_position_probe_pattern(modules, 0, 0);
+		setup_position_probe_pattern(modules, size - 7, 0);
+		setup_position_probe_pattern(modules, 0, size - 7);
 		setup_position_adjust_pattern(modules, version);
 		setup_timing_pattern(modules);
 		setup_type_info(modules, test, mask_pattern, error_correction_level);
@@ -120,7 +120,7 @@ export function qr(input, { version = -1, correction = 'M' } = {}) {
  * @param {number} row
  * @param {number} col
  */
-function setup_position_probe_patter(modules, row, col) {
+function setup_position_probe_pattern(modules, row, col) {
 	for (let r = -1; r <= 7; r += 1) {
 		if (row + r <= -1 || modules.length <= row + r) continue;
 
