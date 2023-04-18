@@ -1,7 +1,7 @@
 {
 	"name": "headless-qr",
 	"type": "module",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"exports": {
 		".": {
 			"types": "./types/qr.d.ts",
@@ -13,7 +13,8 @@
 		"types"
 	],
 	"scripts": {
-		"build": "tsc"
+		"build": "tsc",
+		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
 		"typescript": "^5.0.4"
