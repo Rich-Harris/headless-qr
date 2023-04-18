@@ -5,6 +5,8 @@
 		"strict": true,
 		"emitDeclarationOnly": true,
 		"declaration": true,
+		"declarationDir": "types",
 		"target": "ES2022"
-	}
+	},
+	"include": ["src"]
 }
